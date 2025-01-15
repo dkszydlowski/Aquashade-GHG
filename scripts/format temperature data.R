@@ -5,6 +5,9 @@ suppressWarnings(library(rLakeAnalyzer))
 if (!require(tidyverse, quietly = TRUE)) install.packages('tidyverse')
 suppressWarnings(library(tidyverse))
 
+if (!require(readxl, quietly = TRUE)) install.packages('readxl')
+suppressWarnings(library(readxl))
+
 ### read in and format the tchain data from EDI ###
 
 # https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-ntl.436.2
@@ -158,5 +161,35 @@ ggplot(tchain.hourly, aes(x = datetime, y = wtr_00.5, color = Lake))+
 
 
 ### read in and format the routines temp data ###
+routines.18 = read.csv("R:/Cascade/Data/Historical Data/2018 Data/2018 Temp DO Profiles.csv")
+routines.19 = read.csv("R:/Cascade/Data/Historical Data/2019 Data/2019 Temp DO Profiles.csv")
+routines.24 = read_xlsx("R:/Cascade/Data/2024 Routines/2024 temp DO profiles.xlsx")
+
+# rename 2024 to match
+names(routines.24)= names(routines.18)
+
+# combine and format date
+routines = rbind(routines.18, routines.19)
+
+routines = routines %>% mutate(date = as.Date(date, format = "%m/%d/%Y"))
+
+routines.24 = routines.24 %>% mutate(date = as.Date(date))
+
+# combine 24 with 18 and 19
+routines = rbind(routines, routines.24)
 
 
+
+# want datetime, lake, year, and the water columns
+routines = routines %>% filter(!is.na(lake) & !is.na(year))
+
+# pivot wider
+routines = routines %>%
+  pivot_wider(values_from = c("temp_c"), id_cols = c("lake", "date", "year", "doy"), names_from = depth, names_prefix = "wtr_")
+
+# change the date to POSIXct
+routines = routines %>% mutate(date = as.Date(date, format = "%m/%d/%Y"))
+
+# save the dataframe
+write.table(routines, "./data/formatted data/routines temp/2018 2019 2024 routines temp.csv", row.names = FALSE, sep = "\t")
+save(routines, file = "./data/formatted data/routines temp/2018 2019 2024 routines temp.RData")
